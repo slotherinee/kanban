@@ -1,0 +1,42 @@
+services:
+  nestjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nestjs-dev
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:postgres@postgres-dev:5432/nestjs_dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      - postgres-dev
+    networks:
+      - nestjs-dev-network
+    restart: unless-stopped
+
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: postgres-dev
+    environment:
+      - POSTGRES_DB=nestjs_dev
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data-dev:/var/lib/postgresql/data
+      - ./init-db.sh:/docker-entrypoint-initdb.d/init-db.sh
+    networks:
+      - nestjs-dev-network
+    restart: unless-stopped
+
+volumes:
+  postgres-data-dev:
+
+networks:
+  nestjs-dev-network:
+    driver: bridge

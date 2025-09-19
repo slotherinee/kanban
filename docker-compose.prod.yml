@@ -1,0 +1,51 @@
+services:
+  nestjs-app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: nestjs-prod
+    ports:
+      - '3000:3000'
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://nestjs_user:strongpassword@postgres-prod:5432/nestjs_prod
+    depends_on:
+      - postgres-prod
+    networks:
+      - nestjs-prod-network
+    restart: always
+    healthcheck:
+      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  postgres-prod:
+    image: postgres:15-alpine
+    container_name: postgres-prod
+    environment:
+      - POSTGRES_DB=nestjs_prod
+      - POSTGRES_USER=nestjs_user
+      - POSTGRES_PASSWORD=strongpassword
+      - POSTGRES_HOST_AUTH_METHOD=trust
+    ports:
+      - '5433:5432'
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
+      - ./postgres-prod:/docker-entrypoint-initdb.d
+    networks:
+      - nestjs-prod-network
+    restart: always
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U nestjs_user -d nestjs_prod']
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+volumes:
+  postgres-data-prod:
+
+networks:
+  nestjs-prod-network:
+    driver: bridge
