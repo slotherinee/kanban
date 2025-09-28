@@ -18,8 +18,120 @@ model User {
   id String @db.Uuid @id @default(uuid())
   username String @db.VarChar(255)
   password String @db.VarChar(255)
+  firstName String @db.VarChar(255) @map("first_name")
+  lastName String @db.VarChar(255) @map("last_name")
+  avatar String? @db.VarChar(255)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
+  // Relations
+  ownedBoards Board[]
+  boardMembers BoardMember[]
+  assignedTasks Task[] @relation("TaskExecutor")
+  createdTasks Task[] @relation("TaskCreator")
+
   @@map("users")
+}
+
+model Board {
+  id String @db.Uuid @id @default(uuid())
+  title String @db.VarChar(255)
+  description String? @db.Text
+  color String? @db.VarChar(10)
+  isPrivate Boolean @default(false) @map("is_private")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  ownerId String @db.Uuid @map("owner_id")
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  members BoardMember[]
+  columns Column[]
+
+  @@map("boards")
+}
+
+model BoardMember {
+  id String @db.Uuid @id @default(uuid())
+  role Role @default(MEMBER)
+  joinedAt DateTime @default(now()) @map("joined_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  userId String @db.Uuid @map("user_id")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  boardId String @db.Uuid @map("board_id")
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, boardId])
+  @@map("board_members")
+}
+
+model Column {
+  id String @db.Uuid @id @default(uuid())
+  title String @db.VarChar(255)
+  position Int
+  color String? @db.VarChar(10)
+  limit Int? // WIP limit for tasks in this column
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  boardId String @db.Uuid @map("board_id")
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  tasks Task[]
+
+  @@unique([boardId, position])
+  @@map("columns")
+}
+
+model Task {
+  id String @db.Uuid @id @default(uuid())
+  title String @db.VarChar(255)
+  description String? @db.Text
+  position Int
+  priority Priority @default(MEDIUM)
+  status TaskStatus @default(TODO)
+  dueDate DateTime? @map("due_date")
+  labels String[] @default([])
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  columnId String @db.Uuid @map("column_id")
+  column Column @relation(fields: [columnId], references: [id], onDelete: Cascade)
+
+  creatorId String @db.Uuid @map("creator_id")
+  creator User @relation("TaskCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  executorId String? @db.Uuid @map("executor_id")
+  executor User? @relation("TaskExecutor", fields: [executorId], references: [id], onDelete: SetNull)
+
+  @@unique([columnId, position])
+  @@map("tasks")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+  BLOCKED
+  ARCHIVED
 }
